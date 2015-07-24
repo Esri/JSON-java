@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Array;
+import java.math.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -69,28 +70,26 @@ import java.util.Map;
  * <li>Strings do not need to be quoted at all if they do not begin with a quote
  * or single quote, and if they do not contain leading or trailing spaces, and
  * if they do not contain any of these characters:
- * <code>{ } [ ] / \ : , = ; #</code> and if they do not look like numbers and
+ * <code>{ } [ ] / \ : , #</code> and if they do not look like numbers and
  * if they are not the reserved words <code>true</code>, <code>false</code>, or
  * <code>null</code>.</li>
- * <li>Values can be separated by <code>;</code> <small>(semicolon)</small> as
- * well as by <code>,</code> <small>(comma)</small>.</li>
  * </ul>
  *
  * @author JSON.org
- * @version 2012-11-13
+ * @version 2015-07-06
  */
-public class JSONArray {
+public class JSONArray implements Iterable<Object> {
 
     /**
      * The arrayList where the JSONArray's properties are kept.
      */
-    private final ArrayList myArrayList;
+    private final ArrayList<Object> myArrayList;
 
     /**
      * Construct an empty JSONArray.
      */
     public JSONArray() {
-        this.myArrayList = new ArrayList();
+        this.myArrayList = new ArrayList<Object>();
     }
 
     /**
@@ -117,7 +116,6 @@ public class JSONArray {
                     this.myArrayList.add(x.nextValue());
                 }
                 switch (x.nextClean()) {
-                case ';':
                 case ',':
                     if (x.nextClean() == ']') {
                         return;
@@ -153,10 +151,10 @@ public class JSONArray {
      * @param collection
      *            A Collection.
      */
-    public JSONArray(Collection collection) {
-        this.myArrayList = new ArrayList();
+    public JSONArray(Collection<Object> collection) {
+        this.myArrayList = new ArrayList<Object>();
         if (collection != null) {
-            Iterator iter = collection.iterator();
+            Iterator<Object> iter = collection.iterator();
             while (iter.hasNext()) {
                 this.myArrayList.add(JSONObject.wrap(iter.next()));
             }
@@ -180,6 +178,11 @@ public class JSONArray {
             throw new JSONException(
                     "JSONArray initial value should be a string or collection or array.");
         }
+    }
+
+    @Override
+    public Iterator<Object> iterator() {
+        return myArrayList.iterator();
     }
 
     /**
@@ -241,6 +244,46 @@ public class JSONArray {
                     : Double.parseDouble((String) object);
         } catch (Exception e) {
             throw new JSONException("JSONArray[" + index + "] is not a number.");
+        }
+    }
+
+    /**
+     * Get the BigDecimal value associated with an index.
+     *
+     * @param index
+     *            The index must be between 0 and length() - 1.
+     * @return The value.
+     * @throws JSONException
+     *             If the key is not found or if the value cannot be converted
+     *             to a BigDecimal.
+     */
+    public BigDecimal getBigDecimal (int index) throws JSONException {
+        Object object = this.get(index);
+        try {
+            return new BigDecimal(object.toString());
+        } catch (Exception e) {
+            throw new JSONException("JSONArray[" + index +
+                    "] could not convert to BigDecimal.");
+        }
+    }
+
+    /**
+     * Get the BigInteger value associated with an index.
+     *
+     * @param index
+     *            The index must be between 0 and length() - 1.
+     * @return The value.
+     * @throws JSONException
+     *             If the key is not found or if the value cannot be converted
+     *             to a BigInteger.
+     */
+    public BigInteger getBigInteger (int index) throws JSONException {
+        Object object = this.get(index);
+        try {
+            return new BigInteger(object.toString());
+        } catch (Exception e) {
+            throw new JSONException("JSONArray[" + index +
+                    "] could not convert to BigInteger.");
         }
     }
 
@@ -360,7 +403,7 @@ public class JSONArray {
      */
     public String join(String separator) throws JSONException {
         int len = this.length();
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 
         for (int i = 0; i < len; i += 1) {
             if (i > 0) {
@@ -489,6 +532,44 @@ public class JSONArray {
     }
 
     /**
+     * Get the optional BigInteger value associated with an index. The 
+     * defaultValue is returned if there is no value for the index, or if the 
+     * value is not a number and cannot be converted to a number.
+     *
+     * @param index
+     *            The index must be between 0 and length() - 1.
+     * @param defaultValue
+     *            The default value.
+     * @return The value.
+     */
+    public BigInteger optBigInteger(int index, BigInteger defaultValue) {
+        try {
+            return this.getBigInteger(index);
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Get the optional BigDecimal value associated with an index. The 
+     * defaultValue is returned if there is no value for the index, or if the 
+     * value is not a number and cannot be converted to a number.
+     *
+     * @param index
+     *            The index must be between 0 and length() - 1.
+     * @param defaultValue
+     *            The default value.
+     * @return The value.
+     */
+    public BigDecimal optBigDecimal(int index, BigDecimal defaultValue) {
+        try {
+            return this.getBigDecimal(index);
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    /**
      * Get the optional JSONArray associated with an index.
      *
      * @param index
@@ -596,7 +677,7 @@ public class JSONArray {
      *            A Collection value.
      * @return this.
      */
-    public JSONArray put(Collection value) {
+    public JSONArray put(Collection<Object> value) {
         this.put(new JSONArray(value));
         return this;
     }
@@ -649,7 +730,7 @@ public class JSONArray {
      *            A Map value.
      * @return this.
      */
-    public JSONArray put(Map value) {
+    public JSONArray put(Map<String, Object> value) {
         this.put(new JSONObject(value));
         return this;
     }
@@ -698,7 +779,7 @@ public class JSONArray {
      * @throws JSONException
      *             If the index is negative or if the value is not finite.
      */
-    public JSONArray put(int index, Collection value) throws JSONException {
+    public JSONArray put(int index, Collection<Object> value) throws JSONException {
         this.put(index, new JSONArray(value));
         return this;
     }
@@ -770,7 +851,7 @@ public class JSONArray {
      *             If the index is negative or if the the value is an invalid
      *             number.
      */
-    public JSONArray put(int index, Map value) throws JSONException {
+    public JSONArray put(int index, Map<String, Object> value) throws JSONException {
         this.put(index, new JSONObject(value));
         return this;
     }
@@ -816,9 +897,42 @@ public class JSONArray {
      *         was no value.
      */
     public Object remove(int index) {
-        Object o = this.opt(index);
-        this.myArrayList.remove(index);
-        return o;
+        return index >= 0 && index < this.length()
+            ? this.myArrayList.remove(index)
+            : null;
+    }
+
+    /**
+     * Determine if two JSONArrays are similar.
+     * They must contain similar sequences.
+     *
+     * @param other The other JSONArray
+     * @return true if they are equal
+     */
+    public boolean similar(Object other) {
+        if (!(other instanceof JSONArray)) {
+            return false;
+        }
+        int len = this.length();
+        if (len != ((JSONArray)other).length()) {
+            return false;
+        }
+        for (int i = 0; i < len; i += 1) {
+            Object valueThis = this.get(i);
+            Object valueOther = ((JSONArray)other).get(i);
+            if (valueThis instanceof JSONObject) {
+                if (!((JSONObject)valueThis).similar(valueOther)) {
+                    return false;
+                }
+            } else if (valueThis instanceof JSONArray) {
+                if (!((JSONArray)valueThis).similar(valueOther)) {
+                    return false;
+                }
+            } else if (!valueThis.equals(valueOther)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

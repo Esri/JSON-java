@@ -26,41 +26,40 @@ SOFTWARE.
 
 import java.util.Iterator;
 
-
 /**
  * This provides static methods to convert an XML text into a JSONObject,
  * and to covert a JSONObject into an XML text.
  * @author JSON.org
- * @version 2012-10-26
+ * @version 2014-05-03
  */
 public class XML {
 
     /** The Character '&amp;'. */
-    public static final Character AMP   = new Character('&');
+    public static final Character AMP   = '&';
 
     /** The Character '''. */
-    public static final Character APOS  = new Character('\'');
+    public static final Character APOS  = '\'';
 
     /** The Character '!'. */
-    public static final Character BANG  = new Character('!');
+    public static final Character BANG  = '!';
 
     /** The Character '='. */
-    public static final Character EQ    = new Character('=');
+    public static final Character EQ    = '=';
 
     /** The Character '>'. */
-    public static final Character GT    = new Character('>');
+    public static final Character GT    = '>';
 
     /** The Character '&lt;'. */
-    public static final Character LT    = new Character('<');
+    public static final Character LT    = '<';
 
     /** The Character '?'. */
-    public static final Character QUEST = new Character('?');
+    public static final Character QUEST = '?';
 
     /** The Character '"'. */
-    public static final Character QUOT  = new Character('"');
+    public static final Character QUOT  = '"';
 
     /** The Character '/'. */
-    public static final Character SLASH = new Character('/');
+    public static final Character SLASH = '/';
 
     /**
      * Replace special characters with XML escapes:
@@ -74,7 +73,7 @@ public class XML {
      * @return The escaped string.
      */
     public static String escape(String string) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder(string.length());
         for (int i = 0, length = string.length(); i < length; i++) {
             char c = string.charAt(i);
             switch (c) {
@@ -103,7 +102,7 @@ public class XML {
     /**
      * Throw an exception if the string contains whitespace.
      * Whitespace is not allowed in tagNames and attributes.
-     * @param string
+     * @param string A string.
      * @throws JSONException
      */
     public static void noSpace(String string) throws JSONException {
@@ -301,9 +300,6 @@ public class XML {
      * @return A simple JSON value.
      */
     public static Object stringToValue(String string) {
-        if ("".equals(string)) {
-            return string;
-        }
         if ("true".equalsIgnoreCase(string)) {
             return Boolean.TRUE;
         }
@@ -313,36 +309,26 @@ public class XML {
         if ("null".equalsIgnoreCase(string)) {
             return JSONObject.NULL;
         }
-        if ("0".equals(string)) {
-            return new Integer(0);
-        }
 
-// If it might be a number, try converting it. If that doesn't work,
-// return the string.
+// If it might be a number, try converting it, first as a Long, and then as a
+// Double. If that doesn't work, return the string.
 
         try {
             char initial = string.charAt(0);
-            boolean negative = false;
-            if (initial == '-') {
-                initial = string.charAt(1);
-                negative = true;
-            }
-            if (initial == '0' && string.charAt(negative ? 2 : 1) == '0') {
-                return string;
-            }
-            if ((initial >= '0' && initial <= '9')) {
-                if (string.indexOf('.') >= 0) {
-                    return Double.valueOf(string);
-                } else if (string.indexOf('e') < 0 && string.indexOf('E') < 0) {
-                    Long myLong = new Long(string);
-                    if (myLong.longValue() == myLong.intValue()) {
-                        return new Integer(myLong.intValue());
-                    } else {
-                        return myLong;
-                    }
+            if (initial == '-' || (initial >= '0' && initial <= '9')) {
+                Long value = new Long(string);
+                if (value.toString().equals(string)) {
+                    return value;
                 }
             }
         }  catch (Exception ignore) {
+            try {
+                Double value = new Double(string);
+                if (value.toString().equals(string)) {
+                    return value;
+                }
+            }  catch (Exception ignoreAlso) {
+            }
         }
         return string;
     }
@@ -392,15 +378,15 @@ public class XML {
      */
     public static String toString(Object object, String tagName)
             throws JSONException {
-        StringBuffer sb = new StringBuffer();
-        int          i;
-        JSONArray    ja;
-        JSONObject   jo;
-        String       key;
-        Iterator     keys;
-        int          length;
-        String       string;
-        Object       value;
+        StringBuilder       sb = new StringBuilder();
+        int                 i;
+        JSONArray           ja;
+        JSONObject          jo;
+        String              key;
+        Iterator<String>    keys;
+        int                 length;
+        String              string;
+        Object              value;
         if (object instanceof JSONObject) {
 
 // Emit <tagName>
@@ -416,16 +402,12 @@ public class XML {
             jo = (JSONObject)object;
             keys = jo.keys();
             while (keys.hasNext()) {
-                key = keys.next().toString();
+                key = keys.next();
                 value = jo.opt(key);
                 if (value == null) {
                     value = "";
                 }
-                if (value instanceof String) {
-                    string = (String)value;
-                } else {
-                    string = null;
-                }
+                string = value instanceof String ? (String)value : null;
 
 // Emit content in body
 
